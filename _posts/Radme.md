@@ -55,4 +55,64 @@ $$P_{Z}(z) = {{1}\over{2\sqrt{4e^{z}-3}}}e^{z}, \\{z|0 \le  z \le ln7\\}$$
 
 <p align="center"><img src="https://user-images.githubusercontent.com/78490586/201087091-23f59c38-a805-4dcb-8132-83b50b2da0bb.png" height="200px" width="300px"></p>
 
+$X, Y, Z$의 각각 분포를 관찰하면 uniform 형태에서 비선형 형태, 단순 증가, 감소함수가 아닌 형태로 분포가 조금씩 변형되는 것을 확인할 수 있습니다. 즉, 비교적 간단한 형태의 분포도 transformation of random variables를 사용하여 형태를 조금씩 변형해줄 수록 좀 더 복잡한 형태의 분포를 가질 수 있습니다. 만약 충분히 많은 횟수, 충분히 복잡한 함수를 사용하여 변형한다면 상당히 복잡한 형태의 분포도 표현할 수 있을 것으로 생각됩니다.
+
+'Normalizing flow'란 위와 같은 성질을 이용하는 기법이라고 할 수 있습니다. 많은 종류의 생성모델은 loglikelihood($p(X)$)를 최대화하려는 목적을 가지고 있습니다. 이러한 관점에서 볼 때 $p(X)$가 주어진 데이터를 표현할 수 있을 만큼 충분히 복잡한 형태이면 좋을 것 입니다. 그러나 기존 'VAE'와 같은 방법론들은 $p(X)$를 복잡하게 표현하기에 한계가 있기에 normalizing flow에서는 아래와 같은 과정을 통해 이러한 한계를 극복하고자 합니다. 
+
+$$z_{i-1} \sim p_{i-1}(z_{i-1})$$
+
+$$z_{i} = f_{i}(z_{i-1}), thus z_{i-1} = f_{i}^{-1}(z_{i})$$
+
+$$p_{i}(z_{i}) = p_{i-1}(f_{i}^{-1}(z_{i}))|\det{{{df_{i}^{-1}}\over{dz_{i}}}}|$$
+
+$$p_{i}(z_{i}) = p_{i-1}(f_{i}^{-1}(z_{i})){\| \det({{df_{i}}\over{dz_{i-1}}})^{-1}\|}$$
+
+$$p_{i}(z_{i}) = p_{i-1}(z_{i-1}){\| \det{{df_{i}}\over{dz_{i-1}}}\|}^{-1}$$
+
+위 식은 $z_{i}$의 분포가 $z_{i-1}$의 분포로부터 $f_{i}$의 transformation을 통해 생성되는 연속적인 과정을 나타내고 있습니다. 이를 그림으로 나타내면 아래와 같습니다.
+
+<p align="center"><img src="https://user-images.githubusercontent.com/78490586/201247340-ba9108a8-a5f2-4ed5-a4b4-9580051d5b59.png" ></p>
+Transformation이 진행될 수록 좀 더 복잡한 형태의 분포가 생성되는 것을 관찰할 수 있습니다. 이제는 이를 좀 더 일반화한 식으로 표현해 보도록 하겠습니다.
+
+$$p_{K}(z_{K}) = p_{K-1}(z_{K-1})|\det{{{df_{K}}\over{dz_{K-1}}}}|^{-1}$$
+
+$$p_{K}(z_{K}) = p_{K-2}(z_{K-2})|\det{{{df_{K}}\over{dz_{K-1}}}}|^{-1}|\det{{{df_{K-1}}\over{dz_{K-2}}}}|^{-1}$$
+
+$$\vdots$$
+
+$$p_{K}(z_{K}) = p_{0}(z_{0})\prod_{i=1}^{K}{|\det{{{df_{i}}\over{dz_{i-1}}}}|^{-1}}$$
+
+이를 계산하기 좀 더 쉽도록 log형태로 바꾸고 $z_{K} = x$임을 활용하면 다음과 같이 나타낼 수 있습니다.
+
+$$x = z_{k} = f_{K}\circ f_{K-1}\circ f_{K-2}\circ f_{K-3}\circ\cdots \circ f_{0}(z_{0})$$
+
+$$log p(x) =log p_{0}(z_{0}) - \sum_{i=1}^{K} log |\det{{{df_{i}}\over{dz_{i-1}}}}|$$
+
+즉 normalizing flow란, 위와같은 식을 통하여 비교적 간단한 형태의 분포($p_{0}(z_{0})$)로 부터 복잡한 형태의 분포($p(x)$)를 계산해내는 기법이며 이를통해 기존의 다른 생성 모델에서는 얻지 못했던 복잡한 형태의 $p_{x}$를 얻을 수 있다. 다만 이에 대한 몇가지 제한이 있는데 이는 다음과 같습니다.
+
+
+1. 역함수( $f^{-1}$ )가 계산하기 쉬운 형태여야 한다.
+2. Determinant를 계산할 수 있어야 한다. $\leftarrow$ Jacobian이 정사각 행렬 형태로 나오도록 x, z의 차원수가 같아하고 deteminant를 계산하기 용이한 형태여야 한다.
+
+따라서 normalizing flow를 활용하는 많은 생성 모델들은 위 제한을 지키되 복잡한 $p(x)$를 보장하도록 $f$의 형태를 복잡화하는데 주안점을 두고 있습니다.
+
+## 1. Structure of NICE
+
+이제 본격적으로 본 논문의 모델 NICE에 대해 알아보도록 하겠습니다. NICE는 위에서 설명한 normalizing flow를 사용하는 flow 계열 모델입니다. 아주 간단한 prior( $p_{H}(h)$ )로 부터 복잡한 likehood( $p_{X}(x)$ )를 최대화할 수 있도록 학습을 진행합니다. 이때 deteminant를 계산할 수 있도록 input vector( $x$ )와 hidden vector( $h$ )의 차원은 같게 하도록 하며 $p_{h}(h)$ 는 각 성분이 독립이고 다음과 같이 factorize하게 분해되는 형태로 가정합니다.
+
+$$p_{H}(h) = \prod_{d}^{D}{p_{H_{d}}}(h_{d})$$
+
+이러한 prior 확률 변수 $h$와 input 확률 변수 $x$가 $h=f(x)$의 관계를 만족 시키면 다음 식과 같이 transformation을 적용할 수 있습니다.
+
+$$p_{X}(x) = p_{H}(f(x))|\det{{{\partial{f(x)}}\over{\partial{x}}}}|$$
+
+이후 다음과 같이 연산하기 쉽도록 log 형태로 바꾸어 줍니다. 아래의 $f(x)$ 가 $f_{d}(x)$ 로 분해되는 과정은 $H$의 각 성분 별로 다른 transformation을 적용하여 좀 더 복잡한 $H$를 만들기 위함입니다.
+
+$$log(p_{X}(x)) = log(p_{H}(f(x)))+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
+
+$$log(p_{X}(x)) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
+
+**1. VAE(Variational Auto-Encoder)**
+VAE 모델의 본디 목적$p(x)$를 최대화하는 것이은 flow 모델과 같습니다. 
+
 
