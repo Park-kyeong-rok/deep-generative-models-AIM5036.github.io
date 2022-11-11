@@ -96,7 +96,7 @@ $$log p(x) =log p_{0}(z_{0}) - \sum_{i=1}^{K} log |\det{{{df_{i}}\over{dz_{i-1}}
 
 따라서 normalizing flow를 활용하는 많은 생성 모델들은 위 제한을 지키되 복잡한 $p(x)$를 보장하도록 $f$의 형태를 복잡화하는데 주안점을 두고 있습니다.
 
-## 1. Structure of NICE
+## 1. Objective function of NICE
 
 이제 본격적으로 본 논문의 모델 NICE에 대해 알아보도록 하겠습니다. NICE는 위에서 설명한 normalizing flow를 사용하는 flow 계열 모델입니다. 아주 간단한 prior( $p_{H}(h)$ )로 부터 복잡한 likehood( $p_{X}(x)$ )를 최대화할 수 있도록 학습을 진행합니다. 이때 deteminant를 계산할 수 있도록 input vector( $x$ )와 hidden vector( $h$ )의 차원은 같게 하도록 하며 $p_{h}(h)$ 는 각 성분이 독립이고 다음과 같이 factorize하게 분해되는 형태로 가정합니다.
 
@@ -106,11 +106,53 @@ $$p_{H}(h) = \prod_{d}^{D}{p_{H_{d}}}(h_{d})$$
 
 $$p_{X}(x) = p_{H}(f(x))|\det{{{\partial{f(x)}}\over{\partial{x}}}}|$$
 
-이후 다음과 같이 연산하기 쉽도록 log 형태로 바꾸어 줍니다. 아래의 $f(x)$ 가 $f_{d}(x)$ 로 분해되는 과정은 $H$의 각 성분 별로 다른 transformation을 적용하여 좀 더 복잡한 $H$를 만들기 위함입니다.
+이후 다음과 같이 연산하기 쉽도록 log 형태로 바꾸어 줍니다. 아래의 $f(x)$ 가 $f_{d}(x)$ 로 분해되는 과정은 $H$의 성분 별로 다른 transformation을 적용하여 좀 더 복잡한 $H$를 만들기 위함입니다. 이는 뒤에서 좀 더 다룰 수 있도록 하겠습니다.
 
 $$log(p_{X}(x)) = log(p_{H}(f(x)))+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
 
 $$log(p_{X}(x)) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
+
+위와 같은 형태는 determistic한 식으로써 연산간에 sampling이 전혀 필요가 없습니다. 따라서 일반적인 opimization 방법들(gradient ascent)을 사용해서 쉽게 maximization할 수 있습니다. 이제 maximize해야 하는 objective function을 결정했으니 역함수와 determinant를 쉽게 구할 수 있는 $f(x)$를 결정할 차례입니다.
+
+## 2. Coupling Layer
+
+### 2-1. General Coupling Layer
+
+우선은 determinant를 쉽게 구할 수 있는 $f_(x)$를 만드는데 집중해보도록 하겠습니다. Determinant를 쉽게 구할 수 있는 행렬은 대표적으로 삼각행렬이 있습니다. 삼각행렬의 determinant 값은 다음과 같이 대각 성분의 곱을 통해 구할 수 있습니다.
+
+$$ 
+A_{n,n} = 
+\det{(\begin{pmatrix}
+a_{1,1} & 0 & \cdots & 0 \\
+a_{2,1} & a_{2,2} & \cdots & 0 \\
+\vdots  & \vdots  & \ddots & \vdots  \\
+a_{n,1} & a_{n,2} & \cdots & a_{n,n} 
+\end{pmatrix})} = \prod_{i=1}^{n}a_{i,i}
+$$
+
+따라서 본 논문에서도 jacobian을 삼각행렬로 만들기 위한 $f_(x)$를 구성합니다. 이를 위해 input $x$와 output $y$를 분해해서 연산을 진행하며 이러한 구조를 **coupling layer**라고 합니다. 분해 방식은 다음과 같습니다. $x$가 $D$차원 vector일 때 $|I_{1}|=d$와 $|I_{2}|=D-d$크기를 갖는 $x_{I_{1}}, x_{I_{2}}$으로 분해합니다. 그리고 output $y_{I_{1}}, y_{I_{2}}$를 아래와 같이 구성합니다.
+
+$$y_{I_{1}} = x_{I_{1}}$$
+
+$$y_{I_{2}} = g(x_{I_{2}};m(x_{I_{1}}))$$
+
+전에 언급했듯이 determinant를 계산하기 위해서는 jacobian matrix가 정방 형태여야 합니다. 따라서 $y$도 $D$ 차원이 될 수 있도록 $g$ 함수는 $\mathbb{R}^{D-d} \times m(\mathbb{R}^{d}) \rightarrow \mathbb{R}^{D-d}$ 형태로 구성되어야 합니다. 또한 $y$의 연산 과정에 비선형 활성화 함수를 포함한 **MLP(Mulit Layer Perceptron)**($m(x)$)를 포함시켜 충분히 복잡한 output을 생성할 수 있도록했습니다. Coubling layer의 이러한 형태로 인해 아래와 같은 삼각행렬 형태의 jacobian을 얻을 수 있습니다.
+
+$${{\partial{y}}\over{\partial{x}}} = 
+\begin{bmatrix} 
+I_{d} & 0 \\
+{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{1}}}}} & {{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}
+\end{bmatrix} 
+$$
+
+결론적으로 해당 jacobian의 determinant는 대각 성분의 곱으로 아래와 같이 되며 $y_{2}$에 복잡한 형태의 $m(x_{I_{1}})$가 포함되어 있지만 삼각행렬의 determinant 정의에 따라 ${{\partial{y_{I_{2}}}}\over{\partial{x_{I_{1}}}}}$는 전혀 계산할 필요가 없어집니다. 
+
+$$\det{{{\partial{y}}\over{\partial{x}}}} = \det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$$
+
+이러한 deteminant를 갖도록 설계한 layer를 **General Coupling Layer**라고 합니다. 이제는 이러한 general한 형태의 coupling layer로 부터 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$ 와 그 역함수를 쉽게 계산할 수 있는 $g$를 선택해야 합니다. 
+
+
+
 
 **1. VAE(Variational Auto-Encoder)**
 VAE 모델의 본디 목적$p(x)$를 최대화하는 것이은 flow 모델과 같습니다. 
