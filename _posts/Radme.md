@@ -48,7 +48,7 @@ $$ f_{Y}(y) = {{1}\over{2\sqrt{1+4y}}}, \\{y|0 \le y \le 6\\}$$
 
 이때 또 한번 $Z=g'(Y)=log(Y+1)$을 만족하는 확률 변수 $Z$를 정의하면 그 확률 분포는 다음과 같습니다.(편의상 계산 과정은 생략하였습니다.)
 
-$$P_{Z}(z) = {{1}\over{2\sqrt{4e^{z}-3}}}e^{z}, \\{z|0 \le  z \le ln7\\}$$
+$$f_{Z}(z) = {{1}\over{2\sqrt{4e^{z}-3}}}e^{z}, \\{z|0 \le  z \le ln7\\}$$
 
 
 식만 보아도 형태가 비교적 복잡한 것을 확인할 수 있습니다. 이 분포를 그림으로 표현하면 아래와 같습니다.
@@ -88,11 +88,11 @@ $$x = z_{k} = f_{K}\circ f_{K-1}\circ f_{K-2}\circ f_{K-3}\circ\cdots \circ f_{0
 
 $$log p(x) =log p_{0}(z_{0}) - \sum_{i=1}^{K} log |\det{{{df_{i}}\over{dz_{i-1}}}}|$$
 
-즉 normalizing flow란, 위와같은 식을 통하여 비교적 간단한 형태의 분포($p_{0}(z_{0})$)로 부터 복잡한 형태의 분포($p(x)$)를 계산해내는 기법이며 이를통해 기존의 다른 생성 모델에서는 얻지 못했던 복잡한 형태의 $p_{x}$를 얻을 수 있다. 다만 이에 대한 몇가지 제한이 있는데 이는 다음과 같습니다.
+즉 normalizing flow란, 위와같은 식을 통하여 비교적 간단한 형태의 분포( $p_{0}(z_{0})$ )로 부터 복잡한 형태의 분포( $p(x)$ )를 계산해내는 기법이며 이를통해 기존의 다른 생성 모델에서는 얻지 못했던 복잡한 형태의 $p_{x}$를 얻을 수 있다. 다만 이에 대한 몇가지 제한이 있는데 이는 다음과 같습니다.
 
 
 1. 역함수( $f^{-1}$ )가 계산하기 쉬운 형태여야 한다.
-2. Determinant를 계산할 수 있어야 한다. $\leftarrow$ Jacobian이 정사각 행렬 형태로 나오도록 x, z의 차원수가 같아하고 deteminant를 계산하기 용이한 형태여야 한다.
+2. Determinant를 계산할 수 있어야 한다. $\leftarrow$ Jacobian이 정사각 행렬 형태로 나오도록 x, z의 차원수가 같아하고 determinant를 계산하기 용이한 형태여야 한다.
 
 따라서 normalizing flow를 활용하는 많은 생성 모델들은 위 제한을 지키되 복잡한 $p(x)$를 보장하도록 $f$의 형태를 복잡화하는데 주안점을 두고 있습니다.
 
@@ -136,7 +136,7 @@ $$y_{I_{1}} = x_{I_{1}}$$
 
 $$y_{I_{2}} = g(x_{I_{2}};m(x_{I_{1}}))$$
 
-전에 언급했듯이 determinant를 계산하기 위해서는 jacobian matrix가 정방 형태여야 합니다. 따라서 $y$도 $D$ 차원이 될 수 있도록 $g$ 함수는 $\mathbb{R}^{D-d} \times m(\mathbb{R}^{d}) \rightarrow \mathbb{R}^{D-d}$ 형태로 구성되어야 합니다. 또한 $y$의 연산 과정에 비선형 활성화 함수를 포함한 **MLP(Mulit Layer Perceptron)**($m(x)$)를 포함시켜 충분히 복잡한 output을 생성할 수 있도록했습니다. Coubling layer의 이러한 형태로 인해 아래와 같은 삼각행렬 형태의 jacobian을 얻을 수 있습니다.
+전에 언급했듯이 determinant를 계산하기 위해서는 jacobian matrix가 정방 형태여야 합니다. 따라서 $y$도 $D$ 차원이 될 수 있도록 $g$ 함수는 $\mathbb{R}^{D-d} \times m(\mathbb{R}^{d}) \rightarrow \mathbb{R}^{D-d}$ 형태로 구성되어야 합니다. 또한 $y$의 연산 과정에 비선형 활성화 함수를 포함한 **MLP(Mulit Layer Perceptron)**( $m(x)$ )를 포함시켜 충분히 복잡한 output을 생성할 수 있도록했습니다. Coubling layer의 이러한 형태로 인해 아래와 같은 삼각행렬 형태의 jacobian을 얻을 수 있습니다.
 
 $${{\partial{y}}\over{\partial{x}}} = 
 \begin{bmatrix} 
@@ -167,7 +167,7 @@ $$x_{I_{1}} = y_{I_{1}}$$
 
 $$x_{I_{2}} = g^{-1}(y_{I_{2}};m(y_{I_{1}})) = y_{I_{2}} - m(y_{I_{1}})$$
 
-또한 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}} = 1$인것도 매우 쉽게 확인할 수 있습니다. **Addictive coupling layer**란 이처럼 $g$를 합연산을 통해 구현함을 통해 general coupling layer에서는 여전히 남아있는 문제들을 해결한 coupling layer입니다. 이에대한 coumputational graph는 아래와 같습니다.   
+또한 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}} = 1$인것도 매우 쉽게 확인할 수 있습니다. **Addictive coupling layer**란 이처럼 $g$를 합연산을 통해 구현하여 general coupling layer에서는 여전히 남아있는 문제들을 해결한 coupling layer입니다. 이에대한 coumputational graph는 아래와 같습니다.   
 
 
 <p align="center"><img src="https://user-images.githubusercontent.com/78490586/201508654-e45a351f-96bb-4817-856b-0de49a9de8d8.png" height="200px" width="300px"
@@ -234,7 +234,7 @@ $$ log(p_{H_{d}}) = -log(1 + exp(h_{d}))-log(1 + exp(-h_{d})) $$
 
 ### 3-1. Loglikelihood and Generation
 
-실험은 다른 생성 모델과 마찬가지로 log likelihood($log p(x)$)를 관찰하였습니다. 실험 조건에 대해서 간단히 설명해 드리면 일단은 데이터의 dequantized version을 사용했다고 언급되어 있는데 이는 prior가 연속 확률 분포를 갖기 때문에 $p(x)$도 연속 확률 분포일 것이기 때문이라고 생각했습니다. 또한 whitening, ZCA 등의 전처리를 해주었는데 이는 각 차원이 uncorrelate하게 해주는 전처리 입니다. 첫번째 실험 결과는 다음과 같습니다.
+실험은 다른 생성 모델과 마찬가지로 log likelihood( $log p_{X}(x)$ )를 관찰하였습니다. 실험 조건에 대해서 간단히 설명해 드리면 일단은 데이터의 dequantized version을 사용했다고 언급되어 있는데 이는 prior가 연속 확률 분포를 갖기 때문에 $p(x)$도 연속 확률 분포일 것이기 때문이라고 생각했습니다. 또한 whitening, ZCA 등의 전처리를 해주었는데 이는 각 차원이 uncorrelate하게 해주는 전처리 입니다. 첫번째 실험 결과는 다음과 같습니다.
 
 <p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201513549-3111dfaa-03f6-47f0-9641-2e1484b7d42f.png" height="200px"></p>
 
@@ -268,12 +268,36 @@ $$ \epsilon \sim N(0,I)$$
 
 해당 결과로 부터 NICE가 한 데이터의 일부분의 차원 정보로 부터 $p(x)$를 잘 유추할 수 있으므로 데이터의 분포를 잘 학습하였다고 할 수 있습니다.
 
-## 4. 부록
-
-### 4-1. Visualization of Scaling factor
-
-본 논문은 추가적으로 데이터별로 $S_{ii}$를 크기별로 정렬하여 시각화하는 실험을 진행했습니다. 정확히는 $\sigma_{d}$ = S^{-1}\_{dd}$를 크기별로 정렬하여 시각화하였습니다. y축은 $\sigma_{d}$, x축은 정렬 번호를 의미하며 결과는 다음과 같습니다. 
+## 4. 추가 실험
 
 <p align="center"><img src="https://user-images.githubusercontent.com/78490586/201519959-c6d7d7ca-848c-49a5-a58a-70c86cf811b4.png" height="300px"></p>
 
-$\sigma_{d}$가 크다는 것은 $S^{-1}\_{dd}$가 작다는 것으로 해당 차원이 중요한 차원이라는 의미입니다. 그림을 보면 MNIST 데이터 셋에서 유독 $\sigma_{d}$들이 불균형한데 이는 MNIST 데이터 셋은 불필요한 배경이 많기 때문에 다른 데이터들 보다 상대적으로 필요한 차원, 불필요한 차원으로 구분이 되기가
+### 4-1. Visualization of Scaling factor
+
+본 논문은 추가적으로 데이터별로 $S_{ii}$를 크기별로 정렬하여 시각화하는 실험을 진행했습니다. 정확히는 $\sigma_{d} = S^{-1}\_{dd}$ 를 크기별로 정렬하여 시각화하였습니다. y축은 $\sigma_{d}$, x축은 정렬 번호를 의미하며 결과는 다음과 같습니다. 
+
+<p align="center"><img src="https://user-images.githubusercontent.com/78490586/201519959-c6d7d7ca-848c-49a5-a58a-70c86cf811b4.png" height="300px"></p>
+
+$\sigma_{d}$가 크다는 것은 $S^{-1}\_{dd}$가 작다는 것으로 해당 차원이 중요한 차원이라는 의미입니다. 그림을 보면 MNIST 데이터 셋에서 유독 $\sigma_{d}$들이 불균형한데 이는 MNIST 데이터 셋은 불필요한 배경이 많기 때문에 다른 데이터들 보다 상대적으로 필요한 차원, 불필요한 차원으로 구분이 되기가 쉽기 때문으로 유추하였습니다. 
+
+## 5. 다른 생성 모델들과의 비교
+
+가장 대표적인 생성 모델은 크게 **GAN**, **VAE**, **Normalizing Flow** 계열 모델들 입니다. 본 목차에서는 3가지 모델들의 공통점 및 차이점을 아주 간략히 알아볼 수 있도록 하겠습니다. 3 모델은 학습 목표에 있어 가장 큰 차이점이 존재합니다. GAN은 특히 나머지 2 모델들과는 꽤 다른 학습 목표를 가지고 있습니다. 식없이 간단하게 표현하면 진짜 같은 데이터 샘플을 만들어내는 것이 목표입니다. 물론 이 과정에서 $p_{X}(x)$를 estimation 할 수 있고 이러한 estimation이 올바른 $p_{X}(x)$를 구하기를 기대하겠지만 본디 목적은 $p_{X}(x)$를 계산하거나 최대화하는 것은 아닙니다. 그러나 VAE, Normalizing flow 모델은 본디 목적이 $p_{X}(x)$를 최대화 하는 것 입니다. 다만 이 과정에서 아래와 같이 VAE는 $log p_{X}(x)$의 lower bound인 ELBO를 normalizing flow를 true log-likelihood 값을 최대화하는 것을 목적으로 합니다. 
+
+- Objective function of VAE: Maximize ELBO
+
+$$\mathbb{E}\_{q(h|x)}ln({{p(h,x)}\over{q(h|x)}})$$
+
+VAE 모델은 ELBO를 최대화하기 위해 주로 sampling을 사용하며 이는 $p_{X}(x)$를 최대화 하는데 있어 bias로 작용할 수 있습니다. 하지만 NF 모델은 본질적으로 $p_{X}(x)$를 계산하는데 있어 bias가 전혀 없습니다. 대신 본 NICE 논문에서 보여드린 것 처럼 구현에 있어 엄청난 제약들이 존재하기 때문에 실제로 true $p_{X}(x)$를 계산하는 것은 쉬운일은 아닐 것이라 예상됩니다. 
+
+## 6. Future Work
+
+NICE와 같은 flow-based 모델들의 방향은 대표적으로 다음과 같습니다.
+
+- Determinant는 쉽게 구할 수 있지만 invertible $f(x)$ 구현하기 
+
+따라서 추후의 많은 논문들이 $f(x)$가 $p_{X}(x)$를 표현하기 충분한만큼 복잡한 함수로 만드는데 집중합니다. NICE 이후의 flow-based 모델중 한가지인 [realNVP](https://arxiv.org/abs/1605.08803)는 아래 사진과 같이 데이터를 조금 더 복잡하게 분해하는 'masked convolution layer'와 additive coupling layer보다 복잡한 연산을 가능케 하는 'combining coupling layers'를 구현하여 좀 더 표현력있는 $p_X(x)$를 계산하였습니다. 
+
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201521252-b08fc87d-afc2-42c1-a0f8-0c45a2211b96.png" height="150px"></p>
+
+또한 realNVP 이후 모델인 [GLOW](https://arxiv.org/abs/1807.03039)는 invertible한 1x1 convolution을 사용하여 데이터 분해시 permutation을 일반화 하면서 성능 향상을 일으켰습니다. [Flow++](https://arxiv.org/pdf/1902.00275.pdf) 모델은 다른 dequantization 방법을 적용하고 일반적인 coupling layer보다 훨씬 복잡한 연산을 보장하는 logistic mixture CDF coupling layer를 도입함으로서 다시 한번 성능 향상을 일으켰습니다. 이와 같이 NICE 이후의 flow-based model들은  determinant는 쉽게 구할 수 있지만 invertible $f(x)$ 구현하는데 많은 초점이 맞춰져 있는 것을 알 수 있습니다.
