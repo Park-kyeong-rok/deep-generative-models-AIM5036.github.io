@@ -114,7 +114,7 @@ $$log(p_{X}(x)) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|\det{{{\partial{
 
 위와 같은 형태는 determistic한 식으로써 연산간에 sampling이 전혀 필요가 없습니다. 따라서 일반적인 opimization 방법들(gradient ascent)을 사용해서 쉽게 maximization할 수 있습니다. 이제 maximize해야 하는 objective function을 결정했으니 역함수와 determinant를 쉽게 구할 수 있는 $f(x)$를 결정할 차례입니다.
 
-## 2. Coupling Layer
+## 2. Structure of NICE
 
 ### 2-1. General Coupling Layer
 
@@ -151,10 +151,107 @@ $$\det{{{\partial{y}}\over{\partial{x}}}} = \det{{{\partial{y_{I_{2}}}}\over{\pa
 
 이러한 deteminant를 갖도록 설계한 layer를 **General Coupling Layer**라고 합니다. 이제는 이러한 general한 형태의 coupling layer로 부터 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$ 와 그 역함수를 쉽게 계산할 수 있는 $g$를 선택해야 합니다. 
 
+### 2-2. Additive Coupling Layer
+
+앞서 정의한 general coupling layer는  jacobian matrix를 비교적 간단한 형태로 함으로써 determinant의 손쉬운 계산을 가능하게 해줬습니다. 하지만 여전히 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$ 와 $g^{-1}$을 계산할 수 있는 $g$를 선택해야하는 과제가 남아있습니다. 이러한 과제를 해결하기 위한 가장 간단한 방법은 $g$를 다음과 같이 간단한 합연산만을 포함한 함수로 선택하는 것입니다.
+
+$$g(a;b) = a+b$$
+
+이러한 $g$를 선택하면 다음과 같이 아주 간단하게 output $y$로 부터 input $x$를 계산할 수 있습니다.(역함수를 구할 수 있습니다.) 
+
+$$y_{I_{1}} = x_{I_{1}}$$
+
+$$y_{I_{2}} = g(x_{I_{2}};m(x_{I_{1}})) = x_{I_{2}} + m(x_{I_{1}}) $$
+
+$$x_{I_{1}} = y_{I_{1}}$$
+
+$$x_{I_{2}} = g^{-1}(y_{I_{2}};m(y_{I_{1}})) = y_{I_{2}} - m(y_{I_{1}})$$
+
+또한 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}} = 1$인것도 매우 쉽게 확인할 수 있습니다. **Addictive coupling layer**란 이처럼 $g$를 합연산을 통해 구현함을 통해 general coupling layer에서는 여전히 남아있는 문제들을 해결한 coupling layer입니다. 이에대한 coumputational graph는 아래와 같습니다.   
 
 
+<p align="center"><img src="https://user-images.githubusercontent.com/78490586/201508654-e45a351f-96bb-4817-856b-0de49a9de8d8.png" height="200px" width="300px"
+ ></p>
+ 
+ 그림을 보면 위에 설명한 구조와 똑같아서 이해하기 쉬우시겠지만 표기들이 달라 이에대해 간단히 언급하자면 $x_{key} = x_{I_{1}}, y_{key} = y_{I_{1}}, x_{plain} = x_{I_{2}}, y_{cipher} = y_{I_{2}}$ 입니다. 사실 이러한 용어 선택에 대한 질문을 받았었는데 제가 저자가 아니기 때문에 정확히는 잘 모르겠습니다. 그치만 한번 유추해 보자면 $key = I_{1}$은 일단 $x_{key}$와 $y_{key}$에 공통으로 사용함으로써 input이 바로 output이 되어 변하지 않는다는 의미를 내포하는 것 같습니다. $plain$은 '솔직한', '있는 그대로의', '분명한'과 같은 뜻을 갖고 있는데 이는 아마 $x_{I_{2}}$가 $y_{I_{2}}$로 될 때 그대로 더해지니까 선택한 단어가 아닌가 합니다. $cipher$는 '암호'라는 뜻을 갖고 있는데 이는 $x_{I_{1}}$이 비선형 함수 mlp를 지나 $x_{I_{2}}$와 더해져 $y_{I_{2}}$가 만들어 지기 때문에 output으로써 해석하거나 이해할 순 없지만 데이터의 여러 특징들을 반영한 벡터가 되기를 원하기 때문이 아닐까 합니다. 다만 이부분은 순전히 개인적인 생각이니 다른 주장이 있으면 말씀해주시면 감사드리겠습니다 :)
+ 
+ 자, 여러분 벌써 여기까지 왔습니다. 이러한 additive coupling layer로도 충분히 생성 모델을 만들어 낼 수 있을 것 같습니다. 그러나 너무 아쉽게도 아직 2가지 한계가 있습니다. 첫번째는 바로 coupling layer에서는 $x_{I_{1}}$이 그대로  $y_{I_{1}}$이 되어버린 다는 것 입니다. 저희가 애초에 normalizing flow 기법을 쓰는 이유가 충분히 복잡한 $p(x)$를 만들기 위함이잖아요? 근데 input의 일부분이 그대로 output이 되어버린다니... 이런식이면 input과 output이 선형성으로만 유지되는 부분이 생기고 복잡한 $p(x)$를 생성해내지 못하게 됩니다!
+ 
+ 또한 determinant를 너무 간단히 만들려다 보니까 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$가 그냥 1이 되어버렸습니다. 앞서 설명드린 것 처럼 determinant의 역할은 expansion과 contraction인데 이는 transformation 과정간 아주 중요한 역할을 담당하고 있습니다. 따라서 determinant가 1인 것도 additive coupling layer의 한계라 볼 수 있습니다. 따라서 다음 과정은 이러한 한계점들을 극복하기 위한 방안을 제시합니다.
+ 
+ ### 2-3. Combining Coupling Layers
+ 
+$x_{I_{1}}$이 그대로  $y_{I_{1}}$이 되는 문제는 비교적 간단히 해결할 수 있습니다. Coupling layer를 여러 층으로 쌓고 한개의 coupling layer마다 $x_{I_{1}}$과 $x_{I_{2}}$를 교체하면 됩니다. 이를 그림으로 표현한 것은 다음과 같습니다. 
+ 
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201510571-576694b0-9b1a-4d08-aaf7-d2fa4b60210a.png" height="600px" width="400px"
+ ></p>
+ 
+ 그림처럼 coupling layer마다 $I_{1}, I_{2}$를 구성하는 방법을 뒤바꿔주면 결국엔 input이 완전히 바뀔 수 있을 것 입니다.($x$와 $z$의 변화를 통해 쉽게 확인할 수 있습니다.) 또한 본 구현에서는 그림과 같이 $I_{1}, I_{2}$를 구성할 때도 약갼의 복잡성을 추가하기 위해 데이터의 홀수별, 짝수별로 구성하였습니다. 여기서 어떤분은 '근데 왜  $I_{1}, I_{2}$을 꼭 $D/2$ 차원으로 구성할까?'라는 의문이 드실 수 있을 것 같습니다. 이에 대한 이유는 다음과 같습니다. 물론 기본적으로는 꼭 $I_{1}, I_{2}$를 꼭 $D/2$ 차원으로 구성할 필요는 없습니다. 다만 구현 과정에 있어서 $y_{I_{2}} = x_{I_{2}} + m(x_{I_{1}})$이기 때문에 $m(x_{I_{1}})$과 $y_{I_{2}}$의 차원은 같아야 합니다. 근데 만약 input을 분해할 때 차원을 똑같이 구성해 주지 않는다면 다음 layer에서는 $x_{I_{1}}$과 $x_{I_{2}}$가 뒤바뀌어야 함으로 이를 위한 $m(x)$를 따로 설계해야 겠죠... 따라서 이러한 불필요한 설계를 줄이기 위해 $I_{1}, I_{2}$을 간단히 $D/2$ 차원으로 구성한 것 같습니다. 만약 input, output의 차원을 같도록 설정할 수 있다면 input을 굳이 $D/2$ 차원으로는 분해할 필요가 없다고 생각합니다.
+ 
+### 2-4. Allowing rescaling
 
-**1. VAE(Variational Auto-Encoder)**
-VAE 모델의 본디 목적$p(x)$를 최대화하는 것이은 flow 모델과 같습니다. 
+이쯤에서 다시한번 처음으로 돌아가 저희의 objective function을 확인해보겠습니다.
 
+$$log(p_{X}(x)) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
 
+이제는 coupling layer을 통해 드디어 위 objective function을 최적화시킬 수 있습니다! 그치만 한가지 안타까운 점은 $\det{{{\partial{y_{I_{2}}}}\over{\partial{x_{I_{2}}}}}}$가 1이되어 $log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$ 항이 0이 되어버린다는 것 입니다. '0-1' 항목에서 보았듯이 determinant는 분포의 expansion, contraction에 영향을 줍니다. 따라서 determinant가 1이 되어 역할을 못한다는 것은 분포의 transformation 과정에 있어서 복잡성을 떨어뜨려 복잡한 true loglikelihood, $p(x)$를 구하는데는 악영향을 끼칠 것 입니다. 
+
+이를 해결하기 위해 가장 마지막 coupling layer의 output에 digonal scaling matrix를 곱해주어 determinant의 역할을 할 수 있도록 도와줍니다. 즉, 각 $i$ 차원의 성분은 $(x_{i})\_{i\le D} \rightarrow (S_{ii}x_{i})\_{i\le D}$와 같이 변환됩니다. 이때 objective function은 다음과 같이 수정되며 구현상 $|S_{ii}|$를 사용하는 것보다 $e^{s_{ii}}$를 대신해서 사용하는 것이 더욱 간단하기 때문에 $e^{s_{ii}}$를 사용하였습니다.
+
+$$log(p_{X}(x)) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|\det{{{\partial{f(x)}}\over{\partial{x}}}}|)$$
+
+$$= \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|S_{ii}|)$$
+
+$$= \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(e^{s_{ii}}) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+e^{s_{ii}}$$
+
+특정 차원 $i$에서 $S_{ii}$가 $x_{i}$ 차원의 분포는 범위가 넓어지게 되며 전체적으로 확률이 낮아지는 expansion을  $S_{ii}$가 작을수록 contraction을 겪게 됩니다. 본 논문에서는 $S_{ii}$의 이러한 역할이 determinant와 똑같은 역할을 수행한다고 언급하고 있습니다.
+ 
+### 2-5. Prior Distribution
+
+해당 부분은 NICE의 structure에 대한 부분이라기 보다는 그냥 prior($H$)의 분포를 정하는 파트입니다. 사실 prior는 transformation을 거치며 복잡한 데이터의 분포로 변형될 것이기 때문에 크게 중요한 부분은 아닌 것 같습니다. 대신 그래도 어느정도는 복잡한 것이 좋을 것 같습니다. 따라서 본 논문에서는 앞서 언급한 것처럼 prior를 gausian 또는 logistic distribution으로 결정합니다. 딱히 중요하다고 생각되지 않는 파트기에 gausian distribution과 logistic distribution의 log 형식을 식으로 보여드리고 넘어가도록 하겠습니다.
+
+- **Gausian distribution**
+
+$$ log(p_{H_{d}}) = -{{1}\over{2}}(h^{2}\_{d} + log(2\pi))$$
+
+- **Logistic distribution**
+
+$$ log(p_{H_{d}}) = -log(1 + exp(h_{d}))-log(1 + exp(-h_{d})) $$
+
+## 3. Experiments
+
+### 3-1. Loglikelihood and Generation
+
+실험은 다른 생성 모델과 마찬가지로 log likelihood($log p(x)$)를 관찰하였습니다. 실험 조건에 대해서 간단히 설명해 드리면 일단은 데이터의 dequantized version을 사용했다고 언급되어 있는데 이는 prior가 연속 확률 분포를 갖기 때문에 $p(x)$도 연속 확률 분포일 것이기 때문이라고 생각했습니다. 또한 whitening, ZCA 등의 전처리를 해주었는데 이는 각 차원이 uncorrelate하게 해주는 전처리 입니다. 첫번째 실험 결과는 다음과 같습니다.
+
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201513549-3111dfaa-03f6-47f0-9641-2e1484b7d42f.png" height="200px"></p>
+
+사실 해당 표만 갖고는 별로 언급할 사항은 없습니다. 다른 모델과 비교한 것은 다음과 같습니다.
+
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201513723-a2596cc3-03f1-4352-a0a3-97f4b32d2af5.png" height="170px"></p>
+
+비교에 사용된 ['Deep MFA'](https://arxiv.org/abs/1206.4635?context=cs) 모델은 2012년의 density estimation 모델이고 'GRBM'은 restricted boltzmann machine 게열 모델입니다. 두개다 현시점에서는 오래된 모델들이기에 당시에 NICE가 기존 모델들에 비해서 꽤 괜찮은 성능을 보였다는 것만 확인하면 될 것 같습니다. 또한 당연하게도 아래 식과 같이 $h$를 샘플링한 후에 이미지를 생성해 낼수 있습니다.
+
+$$ h \sim p_{H}(h)$$
+
+$$ x = f^{-1}(h)$$
+
+NICE가 생성해낸 이미지는 다음과 같습니다.
+
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201514245-6201861b-aa22-47df-aa58-d4bb66864666.png" height="600px"></p>
+
+다만 생성한 이미지 퀄리티가 그다지 좋아보이지는 않습니다.
+
+### 3-2. Inpainting
+
+제가 생성 모델쪽 많은 논문을 보지는 않았지만 본 논문에는 제가 읽었던 다른 논문에서는 없었던 재밌는 실험이 있습니다. 바로 이미지의 일부분을 가리거나 노이즈를 준 뒤 원본 이미지를 복원하는 실험입니다. 그 방법은 간단한데 이미지에서 정상으로 관찰된(노이즈는 주지 않은) 부분을 $x_{O}$ 노이즈를 준 부분을 $x_{H}$라고 합니다. 이때 학습되어 있는 NICE를 이용하여 $x_{H}$를 변수로 log likelihood 값을 최대화 하도록 학습하는 것 입니다. 식은 다음과 같으며 $\alpha$는 step size를 $i$는 iteration number를 의미합니다. 
+
+$$ x_{H,i+1} = x_{H,i} + {\alpha}\_{i}({{\partial{log(p_{X}((x_{O}, x_{H,i})))}}\over{\partial{x_{H,i}}}}+\epsilon)$$
+
+$$ \epsilon \sim N(0,I)$$
+
+이러한 방법을 통해 일부분 관찰된 데이터가 들어왔을 때 노이즈가 존재하거나 관찰되지 않은 부분을 복원시킬 수 있습니다. 결과는 다음과 같습니다.
+
+<p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201514915-c7e365cf-978f-4022-8d90-7ef251c8dc38.png" height="300px"></p>
+
+해당 결과로 부터 NICE가 한 데이터의 일부분의 차원 정보로 부터 $p(x)$를 잘 유추할 수 있으므로 데이터의 분포를 잘 학습하였다고 할 수 있습니다.
