@@ -204,7 +204,19 @@ $$= \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(|S_{ii}|)$$
 
 $$= \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+log(e^{s_{ii}}) = \sum_{d=1}^{D}{log(p_{H_{d}}(f_{d}(x)))}+e^{s_{ii}}$$
 
-특정 차원 $i$에서 $S_{ii}$가 $x_{i}$ 차원의 분포는 범위가 넓어지게 되며 전체적으로 확률이 낮아지는 expansion을  $S_{ii}$가 작을수록 contraction을 겪게 됩니다. 본 논문에서는 $S_{ii}$의 이러한 역할이 determinant와 똑같은 역할을 수행한다고 언급하고 있습니다.
+그렇다면 이 $S$는 어떤 역할을 할 수 있을까요? 여기서부터는 필자의 자의적인 해석이 어느정도 포함되므로 틀린 사실이 있으면 바로 정정해주시길 바라겠습니다. 저희는 '0-1' 항목에서 아래와 같은 식에서 determinant $|J|$가 커질수록 transformation시 분포가 expansion하고 작을수록 contraction된다는 사실을 관찰하였습니다. 
+
+$$ p_{Y}(Y) = p_{X}(g^{-1}(y))|{{\partial}\over{\partial{y}}}g^{-1}(y)| = p_{X}(g^{-1}(y)){{1}\over{|J|}}$$
+
+NICE의 변경된 objective function을 다음과 같습니다.
+
+$$p_{X}(x) = \prod_{i}^{D}{p_{H_{i}}(f_{i}(x))|S_{ii}|}$$
+
+여기서 $f_{i}(x)$를 편의상 $h_{i}^{-1}(x)$로 교체해서 적겠습니다.(유사성을 보여주기 위한 편의상의 조치입니다. 어차피 $f$는 역함수가 존재한다고 가정하니 $f=h^{-1}$라고 생각해주시면 될 것 같습니다.) 
+
+$$p_{X}(x) = \prod_{i}^{D}{p_{H_{i}}(h^{-1}\_{i}(x))|S_{ii}|}$$
+
+NICE의 objective function의 형태를 조금 바꾸니 원래의 transformation of variables랑 형태가 같다는 것을 확인할 수 있습니다. 즉 $|S_{ii}|$는 $|{{1}\over{J}}|$의 역할을 수행하도록 만들어진 것 입니다. 앞선 예시에서 $|J|$가 커질수록 분포가 넓어지고 작아질수록 분포가 좁아지는 역할을 수행하는 것을 확인하였습니다. $|S_{ii}|$는 그 역수이므로 커질수록 분포가 좁아지고(contraction) 작아질수록 분포가 넓어지는(expansion) 역할을 수행하게 됩니다. 즉, $|S_{ii}|$ 커질수록 contraction이 심하게 일어나서 해당 차원의 분포는 좁아지게 되어 $p_{X}(x)$는 해당 차원을 의미없는 차원으로 여기게 됩니다. 반대로 $|S_{ii}|$가 작아질수록 expansion이 심하게 일어나서 해당 차원의 분포는 넓어지게 되며 $p_{X}(x)$는 해당 차원의 많은 정보를 사용하므로 상당히 유의미한 차원으로 여기게 됩니다. 이렇듯 차원의 expansion과 contraction을 통해 $p_{X}(x)$를 좀더 풍부하고 복잡하게 만들도록 하는 것이 $S$의 역할입니다.    
  
 ### 2-5. Prior Distribution
 
@@ -255,3 +267,13 @@ $$ \epsilon \sim N(0,I)$$
 <p align="center"><img src= "https://user-images.githubusercontent.com/78490586/201514915-c7e365cf-978f-4022-8d90-7ef251c8dc38.png" height="300px"></p>
 
 해당 결과로 부터 NICE가 한 데이터의 일부분의 차원 정보로 부터 $p(x)$를 잘 유추할 수 있으므로 데이터의 분포를 잘 학습하였다고 할 수 있습니다.
+
+## 4. 부록
+
+### 4-1. Visualization of Scaling factor
+
+본 논문은 추가적으로 데이터별로 $S_{ii}$를 크기별로 정렬하여 시각화하는 실험을 진행했습니다. 정확히는 $\sigma_{d}$ = S^{-1}\_{dd}$를 크기별로 정렬하여 시각화하였습니다. y축은 $\sigma_{d}$, x축은 정렬 번호를 의미하며 결과는 다음과 같습니다. 
+
+<p align="center"><img src="https://user-images.githubusercontent.com/78490586/201519959-c6d7d7ca-848c-49a5-a58a-70c86cf811b4.png" height="300px"></p>
+
+$\sigma_{d}$가 크다는 것은 $S^{-1}\_{dd}$가 작다는 것으로 해당 차원이 중요한 차원이라는 의미입니다. 그림을 보면 MNIST 데이터 셋에서 유독 $\sigma_{d}$들이 불균형한데 이는 MNIST 데이터 셋은 불필요한 배경이 많기 때문에 다른 데이터들 보다 상대적으로 필요한 차원, 불필요한 차원으로 구분이 되기가
